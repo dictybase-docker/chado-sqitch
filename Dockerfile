@@ -12,6 +12,6 @@ RUN apt-get update && apt-get -y install postgresql-client \
     && cd sqitch-dictychado-1.23 \
     && mkdir -p /config \
     && cp sqitch.conf /config/sqitch.conf \
-    && rm sqitch-dictychado-1.23.tar.bz2
+    && rm ../sqitch-dictychado-1.23.tar.bz2
 ENV SQITCH_CONFIG /config/sqitch.conf
 CMD ["/usr/src/chadosqitch/run.sh"]
