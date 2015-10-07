@@ -12,7 +12,7 @@ kubernetes, it can be mounted through `/secrets` through three files,
 `chadodb`, `chadopass` and `chadouser`.
 
 For connecting to a postgres database, it needs two variables,
-`POSTGRES_SRV_SERVICE_HOST` and `POSTGRES_SRV_SERVICE_PORT`. It can be done in
+`POSTGRES_SERVICE_HOST` and `POSTGRES_SERVICE_PORT`. It can be done in
 kubernetes by creating a service named `postgres` or as a standalone container,
 linked to a docker container named `postgres_srv_service`.
 

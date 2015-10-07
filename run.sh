@@ -10,9 +10,9 @@ sqitch config --user core.engine.pg.client `which psql`
 
 if [ ${CHADO_USER+defined} -a ${CHADO_PASS+defined} -a ${CHADO_DB+defined} ]
 then
-    if [ ${POSTGRES_SRV_SERVICE_HOST+defined} ]
+    if [ ${POSTGRES_SERVICE_HOST+defined} ]
     then
-        sqitch target add dictychado db:pg://${CHADO_USER}:${CHADO_PASS}@${POSTGRES_SRV_SERVICE_HOST}:${POSTGRES_SRV_SERVICE_PORT}/${CHADO_DB}
+        sqitch target add dictychado db:pg://${CHADO_USER}:${CHADO_PASS}@${POSTGRES_SERVICE_HOST}:${POSTGRES_SERVICE_PORT}/${CHADO_DB}
         sqitch deploy -t dictychado
     else
         echo no postgres host is defined
