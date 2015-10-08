@@ -1,17 +1,29 @@
 FROM perl:5.20 
 MAINTAINER Siddhartha Basu<siddhartha-basu@northwestern.edu>
 
-COPY run.sh /usr/src/chadosqitch/
-RUN apt-get update && apt-get -y install postgresql-client \
-    && cpanm -n DBD::Pg App::Sqitch \
-    && mkdir -p /usr/src/chadosqitch \
-    && chmod u+x /usr/src/chadosqitch/run.sh \
-    && cd $(mktemp -d) \
-    && curl -L -o sqitch-dictychado-1.23.tar.bz2 https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23/sqitch-dictychado-1.23.tar.gz \
-    && tar xvjf sqitch-dictychado-1.23.tar.bz2 \
-    && cd sqitch-dictychado-1.23 \
-    && mkdir -p /config \
-    && cp sqitch.conf /config/sqitch.conf \
-    && rm ../sqitch-dictychado-1.23.tar.bz2
-ENV SQITCH_CONFIG /config/sqitch.conf
-CMD ["/usr/src/chadosqitch/run.sh"]
+# Install postgres client
+RUN apt-get update \ 
+    && apt-get -y install postgresql-client \
+    && rm -rf /var/lib/apt/lists/* \
+# Add an user that will be used for install purpose
+    && useradd -m -r -s /sbin/nologin -c "Docker image user" caboose \
+    && chown -R caboose /home/caboose \
+# Install perl prerequisites
+    && cpanm -n DBD::Pg App::Sqitch 
+
+# Set as default user 
+USER caboose
+
+# download the source and extract
+RUN cd /home/caboose \  
+    && curl -L -o sqitch-dictychado.tar.bz2 https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23/sqitch-dictychado-1.23.tar.gz \
+    && tar xvjf sqitch-dictychado.tar.bz2 
+
+# Source code folder will be the default landing spot
+WORKDIR /home/caboose/sqitch-dictychado
+
+# Startup script
+ADD run.sh /home/caboose/sqitch-dictychado
+
+# Default command
+CMD ["/home/caboose/sqitch-dictychado/run.sh"]
