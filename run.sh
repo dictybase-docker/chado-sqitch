@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sqitch config --user core.engine.pg.client `which psql`
+sqitch config --user engine.pg.client $(which psql)
 
 # secrets get mounted in a kube cluster
 [ -e /secrets/chadouser ] && CHADO_USER=$(cat /etc/chadouser)
