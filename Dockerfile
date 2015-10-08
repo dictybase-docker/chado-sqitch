@@ -11,19 +11,21 @@ RUN apt-get update \
 # Install perl prerequisites
     && cpanm -n DBD::Pg App::Sqitch 
 
-# Set as default user 
-USER caboose
 
 # download the source and extract
 RUN cd /home/caboose \  
-    && curl -L -o sqitch-dictychado.tar.bz2 https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23/sqitch-dictychado-1.23.tar.gz \
-    && tar xvjf sqitch-dictychado.tar.bz2 
+    && curl -L -O https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23/sqitch-dictychado-1.23.tar.gz \
+    && tar xvjf sqitch-dictychado-1.23.tar.gz \
+    && mv sqitch-dictychado-1.23 sqitch-dictychado
 
 # Source code folder will be the default landing spot
 WORKDIR /home/caboose/sqitch-dictychado
 
+# Set as default user 
+USER caboose
+
 # Startup script
-ADD run.sh /home/caboose/sqitch-dictychado
+ADD run.sh /home/caboose/sqitch-dictychado/
 
 # Default command
-CMD ["/home/caboose/sqitch-dictychado/run.sh"]
+CMD ["run.sh"]
