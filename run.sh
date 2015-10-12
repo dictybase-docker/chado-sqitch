@@ -4,9 +4,9 @@ cd $PWD
 sqitch config --user engine.pg.client $(which psql)
 
 # secrets get mounted in a kube cluster
-[ -e /secrets/chadouser ] && CHADO_USER=$(cat /etc/chadouser)
-[ -e /secrets/chadopass ] && CHADO_PASS=$(cat /etc/chadopass)
-[ -e /secrets/chadodb ] && CHADO_DB=$(cat /etc/chadodb)
+[ -e /secrets/chadouser ] && CHADO_USER=$(cat /secrets/chadouser)
+[ -e /secrets/chadopass ] && CHADO_PASS=$(cat /secrets/chadopass)
+[ -e /secrets/chadodb ] && CHADO_DB=$(cat /secrets/chadodb)
 
 
 if [ ${CHADO_USER+defined} -a ${CHADO_PASS+defined} -a ${CHADO_DB+defined} ]
