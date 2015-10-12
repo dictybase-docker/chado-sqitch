@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd $PWD
 sqitch config --user engine.pg.client $(which psql)
 
 # secrets get mounted in a kube cluster
