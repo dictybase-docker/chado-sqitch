@@ -1,6 +1,15 @@
 #!/bin/bash
 
 
+wait_for_etcd() {
+    if [ ${ETCD_CLIENT_SERVICE_HOST+defined} ]
+    then
+        curl http://${ETCD_CLIENT_SERVICE_HOST}:${ETCD_CLIENT_SERVICE_PORT}/v2/keys/migration/postgres?wait=true
+    else
+        echo "did not register with etcd"
+    fi
+}
+
 register_etcd() {
     if [ ${ETCD_CLIENT_SERVICE_HOST+defined} ]
     then
@@ -36,6 +45,7 @@ extract_secret() {
 
 
 main() {
+    wait_for_etcd
     extract_secret
     deploy_chado
     register_etcd
