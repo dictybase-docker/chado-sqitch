@@ -38,9 +38,20 @@ deploy_chado() {
 
 extract_secret() {
     # secrets get mounted in a kube cluster
-    [ -e /secrets/chadouser ] && CHADO_USER=$(cat /secrets/chadouser)
-    [ -e /secrets/chadopass ] && CHADO_PASS=$(cat /secrets/chadopass)
-    [ -e /secrets/chadodb ] && CHADO_DB=$(cat /secrets/chadodb)
+    if [ -e "/secrets/chadouser" ] 
+    then
+        CHADO_USER=$(cat /secrets/chadouser)
+    fi
+
+    if [ -e "/secrets/chadopass" ] 
+    then
+        CHADO_PASS=$(cat /secrets/chadopass)
+    fi
+
+    if [ -e "/secrets/chadodb" ] 
+    then
+        CHADO_DB=$(cat /secrets/chadodb)
+    fi
 }
 
 
