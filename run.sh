@@ -4,7 +4,7 @@
 wait_for_etcd() {
     if [ ${ETCD_CLIENT_SERVICE_HOST+defined} ]
     then
-        curl http://${ETCD_CLIENT_SERVICE_HOST}:${ETCD_CLIENT_SERVICE_PORT}/v2/keys/migration/postgres?wait=true
+        curl http://${ETCD_CLIENT_SERVICE_HOST}:${ETCD_CLIENT_SERVICE_PORT}/v2/keys/migration/postgresql?wait=true
     else
         echo "did not register with etcd"
     fi
@@ -63,6 +63,6 @@ main() {
 }
 
 
-
+main
 
 
