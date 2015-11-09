@@ -3,7 +3,7 @@ MAINTAINER Siddhartha Basu<siddhartha-basu@northwestern.edu>
 
 # Install postgres client
 RUN apt-get update \ 
-    && apt-get -y install postgresql-client \
+    && apt-get -y install postgresql-client curl \
     && rm -rf /var/lib/apt/lists/* \
 # Add an user that will be used for install purpose
     && useradd -m -r -s /sbin/nologin -c "Docker image user" caboose \
