@@ -1,4 +1,4 @@
-FROM perl:5.20 
+FROM dictybase/perl-golang
 MAINTAINER Siddhartha Basu<siddhartha-basu@northwestern.edu>
 
 # Install postgres client
@@ -24,9 +24,4 @@ WORKDIR /home/caboose/sqitch-dictychado-1.23
 # Set as default user 
 USER caboose
 
-# Startup script
-ADD run.sh /home/caboose/sqitch-dictychado-1.23/
-
-# Default command
-CMD ["/home/caboose/sqitch-dictychado-1.23/run.sh"]
 
