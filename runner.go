@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
+	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
 	"gopkg.in/codegangsta/cli.v1"
 )
@@ -87,7 +89,7 @@ func sqitchAction(c *cli.Context) {
 			}).Fatal(err)
 		}
 	}
-	// extrac database credentials, only in case of kubernetes
+	// extract database credentials, only in case of kubernetes
 	err := extractSecret()
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -105,7 +107,7 @@ func sqitchAction(c *cli.Context) {
 
 	// register the completion with etcd
 	if len(c.String("etcd-host")) > 1 && len(c.String("etcd-port")) > 1 {
-		err := waitForEtcd(client, c)
+		err := registerWithEtcd(client, c)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"type": "etcd-client",
@@ -198,14 +200,19 @@ func deployChado(c *cli.Context) error {
 
 	if len(c.String("chado-user")) > 1 && len(c.String("chado-db")) > 1 && len(c.String("chado-pass")) > 1 {
 		if len(c.String("pghost")) > 1 {
-			dburl := fmt.Sprintf("%s%s:%s@%s:%s/%s",
+			// check if postgres connection is alive before
+			// deploying
+			if err := waitForPostgres(c); err != nil {
+				return err
+			}
+			dburi := fmt.Sprintf("%s%s:%s@%s:%s/%s",
 				"db:pg://", c.String("chado-user"), ":",
 				c.String("chado-pass"), "@",
 				c.String("pghost"), ":",
 				c.String("pgport"), "/",
 				c.String("chado-db"),
 			)
-			target := []string{"target", "add", "dictychado", dburl}
+			target := []string{"target", "add", "dictychado", dburi}
 			tb, err := exec.Command(sqitch, target...).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("%s\t%s\t%s", err.Error(), string(tb), strings.Join(target, " "))
@@ -227,6 +234,34 @@ func registerWithEtcd(api client.KeysAPI, c *cli.Context) error {
 	_, err := api.Set(context.Background(), c.String("key-register"), "complete", nil)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func waitForPostgres(c *cli.Context) error {
+	uri := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
+		c.String("chado-user"), c.String("chado-pass"),
+		c.String("pghost"), c.String("pgport"), c.String("chado-port"))
+
+	db, err := sql.Open("postgres", uri)
+	if err != nil {
+		return err
+	}
+	log.WithFields(log.Fields{
+		"type": "postgres-client",
+	}).Info("Going to check for database connection")
+	for {
+		if err := db.Ping(); err != nil {
+			log.WithFields(log.Fields{
+				"type":   "postgres-client",
+				"status": err,
+			}).Warn("Database is not live, going to check again ...")
+			continue
+		}
+		log.WithFields(log.Fields{
+			"type": "postgres-client",
+		}).Info("Database connection is live")
+		break
 	}
 	return nil
 }
