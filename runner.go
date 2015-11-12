@@ -1,9 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -240,28 +240,23 @@ func registerWithEtcd(api client.KeysAPI, c *cli.Context) error {
 }
 
 func waitForPostgres(c *cli.Context) error {
-	uri := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		c.String("chado-user"), c.String("chado-pass"),
-		c.String("pghost"), c.String("pgport"), c.String("chado-port"))
-
-	db, err := sql.Open("postgres", uri)
-	if err != nil {
-		return err
-	}
 	log.WithFields(log.Fields{
 		"type": "postgres-client",
 	}).Info("Going to check for database connection")
 	for {
-		if _, err := db.Exec("SELECT 1"); err == nil {
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", c.String("pghost"), c.String("pgport")))
+		if err == nil {
 			log.WithFields(log.Fields{
 				"type": "postgres-client",
 			}).Info("Postgresql database started")
+			conn.Close()
 			return nil
 		}
 		log.WithFields(log.Fields{
 			"type": "postgres-client",
 		}).Warn("Postgresql database not started, going to recheck ....")
-		time.Sleep(2000 * time.Millisecond)
+		time.Sleep(5000 * time.Millisecond)
+		conn.Close()
 	}
 	return nil
 }
