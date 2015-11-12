@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
@@ -251,17 +252,16 @@ func waitForPostgres(c *cli.Context) error {
 		"type": "postgres-client",
 	}).Info("Going to check for database connection")
 	for {
-		if err := db.Ping(); err != nil {
+		if _, err := db.Exec("SELECT 1"); err == nil {
 			log.WithFields(log.Fields{
-				"type":   "postgres-client",
-				"status": err,
-			}).Warn("Database is not live, going to check again ...")
-			continue
+				"type": "postgres-client",
+			}).Info("Postgresql database started")
+			return nil
 		}
 		log.WithFields(log.Fields{
 			"type": "postgres-client",
-		}).Info("Database connection is live")
-		break
+		}).Warn("Postgresql database not started, going to recheck ....")
+		time.Sleep(2000 * time.Millisecond)
 	}
 	return nil
 }
