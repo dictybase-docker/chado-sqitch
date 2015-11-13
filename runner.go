@@ -269,6 +269,7 @@ func waitForPostgres(c *cli.Context) error {
 	log.WithFields(log.Fields{
 		"type": "postgres-client",
 	}).Info("Going to check for database connection")
+	time.Sleep(10000 * time.Millisecond)
 	for {
 		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", c.String("pghost"), c.String("pgport")))
 		if err == nil {
@@ -276,12 +277,13 @@ func waitForPostgres(c *cli.Context) error {
 				"type": "postgres-client",
 			}).Info("Postgresql database started")
 			conn.Close()
+			time.Sleep(10000 * time.Millisecond)
 			return nil
 		}
 		log.WithFields(log.Fields{
 			"type": "postgres-client",
 		}).Warn("Postgresql database not started, going to recheck ....")
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(10000 * time.Millisecond)
 		conn.Close()
 	}
 	return nil
