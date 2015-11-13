@@ -12,7 +12,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
-	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
 	"gopkg.in/codegangsta/cli.v1"
 )
@@ -74,7 +73,6 @@ func main() {
 }
 
 func sqitchAction(c *cli.Context) {
-	var client client.KeysAPI
 	// wait for etcd key
 	if len(c.String("etcd-host")) > 1 && len(c.String("etcd-port")) > 1 {
 		client, err := getEtcdAPIHandler(c)
@@ -89,6 +87,10 @@ func sqitchAction(c *cli.Context) {
 				"type": "etcd-client",
 			}).Fatal(err)
 		}
+		log.WithFields(log.Fields{
+			"type": "etcd-client",
+			"key":  c.String("key-watch"),
+		}).Info("finished watching key")
 	}
 	// extract database credentials, only in case of kubernetes
 	err := extractSecret()
@@ -97,6 +99,9 @@ func sqitchAction(c *cli.Context) {
 			"type": "secret",
 		}).Fatal(err)
 	}
+	log.WithFields(log.Fields{
+		"type": "secrets",
+	}).Info("finised going through secrets")
 
 	// deploy the schema
 	err = deployChado(c)
@@ -105,15 +110,26 @@ func sqitchAction(c *cli.Context) {
 			"type": "deploy-chado",
 		}).Fatal(err)
 	}
+	log.WithFields(log.Fields{"type": "deploy-chado"}).Info("complete")
 
 	// register the completion with etcd
 	if len(c.String("etcd-host")) > 1 && len(c.String("etcd-port")) > 1 {
-		err := registerWithEtcd(client, c)
+		client, err := getEtcdAPIHandler(c)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"type": "etcd-client",
 			}).Fatal(err)
 		}
+		err = registerWithEtcd(client, c)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"type": "etcd-client",
+			}).Fatal(err)
+		}
+		log.WithFields(log.Fields{
+			"type": "etcd-client",
+			"key":  c.String("register-key"),
+		}).Info("register key")
 	}
 }
 
@@ -194,6 +210,7 @@ func deployChado(c *cli.Context) error {
 		"engine.pg.client",
 		psql,
 	}
+	// add the psql client path to sqitch
 	cb, err := exec.Command(sqitch, config...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s\t%s\t%s", err.Error(), string(cb), strings.Join(config, " "))
@@ -206,23 +223,32 @@ func deployChado(c *cli.Context) error {
 			if err := waitForPostgres(c); err != nil {
 				return err
 			}
-			dburi := fmt.Sprintf("%s%s:%s@%s:%s/%s",
-				"db:pg://", c.String("chado-user"), ":",
-				c.String("chado-pass"), "@",
-				c.String("pghost"), ":",
-				c.String("pgport"), "/",
+
+			dburi := fmt.Sprintf("db:pg://%s:%s@%s:%s/%s",
+				c.String("chado-user"),
+				c.String("chado-pass"),
+				c.String("pghost"),
+				c.String("pgport"),
 				c.String("chado-db"),
 			)
+			// add an target uri with a name
 			target := []string{"target", "add", "dictychado", dburi}
 			tb, err := exec.Command(sqitch, target...).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("%s\t%s\t%s", err.Error(), string(tb), strings.Join(target, " "))
 			}
+
+			// deploy to the target uri
 			deploy := []string{"deploy", "-t", "dictychado"}
 			dpb, err := exec.Command(sqitch, deploy...).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("%s\t%s\t%s", err.Error(), string(dpb), strings.Join(deploy, " "))
 			}
+			log.WithFields(log.Fields{
+				"type":  "sqitch-client",
+				"stage": "deploy",
+			}).Info(string(dpb))
+
 		} else {
 			return fmt.Errorf("no postgres host is defined")
 		}
@@ -232,7 +258,7 @@ func deployChado(c *cli.Context) error {
 }
 
 func registerWithEtcd(api client.KeysAPI, c *cli.Context) error {
-	_, err := api.Set(context.Background(), c.String("key-register"), "complete", nil)
+	_, err := api.Create(context.Background(), c.String("key-register"), "complete")
 	if err != nil {
 		return err
 	}
