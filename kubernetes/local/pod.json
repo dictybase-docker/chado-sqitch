@@ -1,0 +1,30 @@
+{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "name": "chado-sqitch"
+    },
+    "spec": {
+        "containers": [
+            {
+                "name": "chado-sqitch",
+                "image": "dictybase/chado-sqitch",
+                "env": [
+                    {
+                        "name": "CHADO_USER",
+                        "value": "chado"
+                    },
+                    {
+                        "name": "CHADO_DB",
+                        "value": "dictychado"
+                    },
+                    {
+                        "name": "CHADO_PASS",
+                        "value": "chadopass"
+                    }
+                ]
+            }
+        ],
+        "restartPolicy": "Never"
+    }
+}
