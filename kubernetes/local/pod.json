@@ -8,7 +8,7 @@
         "containers": [
             {
                 "name": "chado-sqitch",
-                "image": "dictybase/chado-sqitch",
+                "image": "dictybase/chado-sqitch:1.23.0",
                 "env": [
                     {
                         "name": "CHADO_USER",
