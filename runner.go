@@ -134,7 +134,7 @@ func sqitchAction(c *cli.Context) {
 }
 
 func getEtcdURL(c *cli.Context) string {
-	return "http://" + c.String("etcd-host") + ":" + c.String("etcd-port")
+	return fmt.Sprintf("http://%s:%s", c.String("etcd-host"), c.String("etcd-port"))
 }
 
 func getEtcdAPIHandler(c *cli.Context) (client.KeysAPI, error) {
@@ -154,7 +154,7 @@ func waitForEtcd(api client.KeysAPI, c *cli.Context) error {
 	if err != nil {
 		// key is not present have to watch it
 		if m, _ := regexp.MatchString("100", err.Error()); m {
-			w := api.Watcher(c.String("key-watch"), nil)
+			w := api.Watcher(c.String("key-watch"), &client.WatcherOptions{AfterIndex: 0, Recursive: false})
 			_, err := w.Next(context.Background())
 			if err != nil {
 				return err
