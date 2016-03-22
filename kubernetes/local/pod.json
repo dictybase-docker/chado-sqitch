@@ -9,6 +9,7 @@
             {
                 "name": "chado-sqitch",
                 "image": "dictybase/chado-sqitch:1.23.0",
+                "command": ["app"],
                 "env": [
                     {
                         "name": "CHADO_USER",
