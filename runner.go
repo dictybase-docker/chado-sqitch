@@ -2,18 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
-	"gopkg.in/codegangsta/cli.v1"
+	"gopkg.in/jackc/pgx.v2"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func main() {
@@ -22,16 +17,6 @@ func main() {
 	app.Usage = "A loader for sqitch database migrations"
 	app.Version = "1.0.0"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "etcd-host",
-			EnvVar: "ETCD_CLIENT_SERVICE_HOST",
-			Usage:  "ip address of etcd instance",
-		},
-		cli.StringFlag{
-			Name:   "etcd-port",
-			EnvVar: "ETCD_CLIENT_SERVICE_PORT",
-			Usage:  "port number of etcd instance",
-		},
 		cli.StringFlag{
 			Name:   "chado-pass",
 			EnvVar: "CHADO_PASS",
@@ -57,142 +42,36 @@ func main() {
 			EnvVar: "POSTGRES_SERVICE_PORT",
 			Usage:  "postgresql port",
 		},
-		cli.StringFlag{
-			Name:  "key-register",
-			Usage: "key to register after finish of loading",
-			Value: "/migration/sqitch",
-		},
-		cli.StringFlag{
-			Name:  "key-watch",
-			Usage: "key to watch before start loading",
-			Value: "/migration/postgresql",
-		},
 	}
 	app.Action = sqitchAction
 	app.Run(os.Args)
 }
 
-func sqitchAction(c *cli.Context) {
-	// wait for etcd key
-	if len(c.String("etcd-host")) > 1 && len(c.String("etcd-port")) > 1 {
-		client, err := getEtcdAPIHandler(c)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"type": "etcd-client",
-			}).Fatal(err)
-		}
-		err = waitForEtcd(client, c)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"type": "etcd-client",
-			}).Fatal(err)
-		}
-		log.WithFields(log.Fields{
-			"type": "etcd-client",
-			"key":  c.String("key-watch"),
-		}).Info("finished watching key")
-	}
-	// extract database credentials, only in case of kubernetes
-	err := extractSecret()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"type": "secret",
-		}).Fatal(err)
-	}
-	log.WithFields(log.Fields{
-		"type": "secrets",
-	}).Info("finised going through secrets")
-
+func sqitchAction(c *cli.Context) error {
 	// deploy the schema
-	err = deployChado(c)
+	err := deployChado(c)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"type": "deploy-chado",
-		}).Fatal(err)
+		}).Error(err)
+		return cli.NewExitError(err.Error(), 2)
 	}
 	log.WithFields(log.Fields{"type": "deploy-chado"}).Info("complete")
-
-	// register the completion with etcd
-	if len(c.String("etcd-host")) > 1 && len(c.String("etcd-port")) > 1 {
-		client, err := getEtcdAPIHandler(c)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"type": "etcd-client",
-			}).Fatal(err)
-		}
-		err = registerWithEtcd(client, c)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"type": "etcd-client",
-			}).Fatal(err)
-		}
-		log.WithFields(log.Fields{
-			"type": "etcd-client",
-			"key":  c.String("register-key"),
-		}).Info("register key")
-	}
-}
-
-func getEtcdURL(c *cli.Context) string {
-	return fmt.Sprintf("http://%s:%s", c.String("etcd-host"), c.String("etcd-port"))
-}
-
-func getEtcdAPIHandler(c *cli.Context) (client.KeysAPI, error) {
-	cfg := client.Config{
-		Endpoints: []string{getEtcdURL(c)},
-		Transport: client.DefaultTransport,
-	}
-	cl, err := client.New(cfg)
+	connConfig, err := getConnConfig(c)
 	if err != nil {
-		return nil, err
+		return cli.NewExitError(err.Error(), 2)
 	}
-	return client.NewKeysAPI(cl), nil
-}
-
-func waitForEtcd(api client.KeysAPI, c *cli.Context) error {
-	_, err := api.Get(context.Background(), c.String("key-watch"), nil)
+	conn, err := pgx.Connect(connConfig)
 	if err != nil {
-		// key is not present have to watch it
-		if m, _ := regexp.MatchString("100", err.Error()); m {
-			w := api.Watcher(c.String("key-watch"), &client.WatcherOptions{AfterIndex: 0, Recursive: false})
-			_, err := w.Next(context.Background())
-			if err != nil {
-				return err
-			}
-			return nil
-		} else {
-			return err
-		}
+		return cli.NewExitError(err.Error(), 2)
 	}
-	// key is already present
+	defer conn.Close()
+	_, err = conn.Exec("SELECT pg_notify('chado-schema', $1)", "loaded")
+	if err != nil {
+		return cli.NewExitError(err.Error(), 2)
+	}
+	log.WithFields(log.Fields{"type": "postgresql notification", "channel": "chado-schema"}).Info("send")
 	return nil
-}
-
-func extractSecret() error {
-	sc := map[string]string{
-		"/secrets/chadouser": "CHADO_USER",
-		"/secrets/chadopass": "CHADO_PASS",
-		"/secrets/chadodb":   "CHADO_DB",
-	}
-	for k, v := range sc {
-		if b, err := readSecretFile(k); err != nil {
-			os.Setenv(v, string(b))
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
-func readSecretFile(path string) ([]byte, error) {
-	if _, err := os.Stat(path); os.IsExist(err) {
-		b, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		return b, nil
-	}
-	return nil, nil
 }
 
 func deployChado(c *cli.Context) error {
@@ -218,12 +97,6 @@ func deployChado(c *cli.Context) error {
 
 	if len(c.String("chado-user")) > 1 && len(c.String("chado-db")) > 1 && len(c.String("chado-pass")) > 1 {
 		if len(c.String("pghost")) > 1 {
-			// check if postgres connection is alive before
-			// deploying
-			if err := waitForPostgres(c); err != nil {
-				return err
-			}
-
 			dburi := fmt.Sprintf("db:pg://%s:%s@%s:%s/%s",
 				c.String("chado-user"),
 				c.String("chado-pass"),
@@ -257,34 +130,14 @@ func deployChado(c *cli.Context) error {
 	return fmt.Errorf("does not have any information about database to deploy")
 }
 
-func registerWithEtcd(api client.KeysAPI, c *cli.Context) error {
-	_, err := api.Create(context.Background(), c.String("key-register"), "complete")
+func getConnConfig(c *cli.Context) (pgx.ConnConfig, error) {
+	dsn := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=disable",
+		c.GlobalString("chado-user"), c.GlobalString("chado-pass"), c.GlobalString("pghost"),
+		c.GlobalString("pgport"), c.GlobalString("chado-db"),
+	)
+	connConfig, err := pgx.ParseDSN(dsn)
 	if err != nil {
-		return err
+		return pgx.ConnConfig{}, err
 	}
-	return nil
-}
-
-func waitForPostgres(c *cli.Context) error {
-	log.WithFields(log.Fields{
-		"type": "postgres-client",
-	}).Info("Going to check for database connection")
-	time.Sleep(10000 * time.Millisecond)
-	for {
-		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", c.String("pghost"), c.String("pgport")))
-		if err == nil {
-			log.WithFields(log.Fields{
-				"type": "postgres-client",
-			}).Info("Postgresql database started")
-			conn.Close()
-			time.Sleep(10000 * time.Millisecond)
-			return nil
-		}
-		log.WithFields(log.Fields{
-			"type": "postgres-client",
-		}).Warn("Postgresql database not started, going to recheck ....")
-		time.Sleep(10000 * time.Millisecond)
-		conn.Close()
-	}
-	return nil
+	return connConfig, nil
 }
