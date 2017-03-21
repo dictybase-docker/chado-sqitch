@@ -42,6 +42,16 @@ func main() {
 			EnvVar: "POSTGRES_SERVICE_PORT",
 			Usage:  "postgresql port",
 		},
+		cli.StringFlag{
+			Name:  "notify-channel",
+			Usage: "The postgresql channel to notify after successful completion of loading",
+			Value: "chado-schema",
+		},
+		cli.StringFlag{
+			Name:  "payload",
+			Usage: "The notify payload",
+			Value: "loaded",
+		},
 	}
 	app.Action = sqitchAction
 	app.Run(os.Args)
@@ -66,7 +76,7 @@ func sqitchAction(c *cli.Context) error {
 		return cli.NewExitError(err.Error(), 2)
 	}
 	defer conn.Close()
-	_, err = conn.Exec("SELECT pg_notify('chado-schema', $1)", "loaded")
+	_, err = conn.Exec("SELECT pg_notify($1, $2)", c.String("notify-channel"), c.String("payload"))
 	if err != nil {
 		return cli.NewExitError(err.Error(), 2)
 	}
