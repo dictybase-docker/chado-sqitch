@@ -34,23 +34,13 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:   "pghost",
-			EnvVar: "POSTGRES_SERVICE_HOST",
+			EnvVar: "CHADO_BACKEND_SERVICE_HOST",
 			Usage:  "postgresql host",
 		},
 		cli.StringFlag{
 			Name:   "pgport",
-			EnvVar: "POSTGRES_SERVICE_PORT",
+			EnvVar: "CHADO_BACKEND_SERVICE_PORT",
 			Usage:  "postgresql port",
-		},
-		cli.StringFlag{
-			Name:  "notify-channel",
-			Usage: "The postgresql channel to notify after successful completion of loading",
-			Value: "chado-schema",
-		},
-		cli.StringFlag{
-			Name:  "payload",
-			Usage: "The notify payload",
-			Value: "loaded",
 		},
 	}
 	app.Action = sqitchAction
@@ -67,20 +57,6 @@ func sqitchAction(c *cli.Context) error {
 		return cli.NewExitError(err.Error(), 2)
 	}
 	log.WithFields(log.Fields{"type": "deploy-chado"}).Info("complete")
-	connConfig, err := getConnConfig(c)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 2)
-	}
-	conn, err := pgx.Connect(connConfig)
-	if err != nil {
-		return cli.NewExitError(err.Error(), 2)
-	}
-	defer conn.Close()
-	_, err = conn.Exec("SELECT pg_notify($1, $2)", c.String("notify-channel"), c.String("payload"))
-	if err != nil {
-		return cli.NewExitError(err.Error(), 2)
-	}
-	log.WithFields(log.Fields{"type": "postgresql notification", "channel": "chado-schema"}).Info("send")
 	return nil
 }
 
