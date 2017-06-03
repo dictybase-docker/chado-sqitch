@@ -17,6 +17,4 @@ kubernetes by creating a service named `postgres` or as a standalone container,
 linked to a docker container named `postgres_srv_service`.
 
 ## Deploy
-[kubernetes](http://kubernetes.io) can be used to deploy the containers. Use the provided manifests in
-the [kubernetes](kubernetes/) folder for both local and cloud deployment.
-
+[kubernetes](http://kubernetes.io) can be used to deploy the containers. 
