@@ -13,13 +13,13 @@ RUN apt-get update \
 
 # download the source and extract
 RUN cd /home/caboose \  
-    && curl -L -O https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23.5/sqitch-dictychado-1.23.5.tar.gz \
-    && tar xvjf sqitch-dictychado-1.23.5.tar.gz \
+    && curl -L -O https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23.5/sqitch-dictychado-1.23.6.tar.gz \
+    && tar xvzf sqitch-dictychado-1.23.6.tar.gz \
     && chown -R caboose /home/caboose 
 
 
 # Source code folder will be the default landing spot
-WORKDIR /home/caboose/sqitch-dictychado-1.23.5
+WORKDIR /home/caboose/sqitch-dictychado-1.23.6
 
 # Set as default user 
 USER caboose
