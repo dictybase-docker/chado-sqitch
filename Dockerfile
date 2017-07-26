@@ -13,7 +13,7 @@ RUN apt-get update \
 
 # download the source and extract
 RUN cd /home/caboose \  
-    && curl -L -O https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23.5/sqitch-dictychado-1.23.6.tar.gz \
+    && curl -L -O https://github.com/dictyBase/Chado-Sqitch/releases/download/dictychado-1.23.6/sqitch-dictychado-1.23.6.tar.gz \
     && tar xvzf sqitch-dictychado-1.23.6.tar.gz \
     && chown -R caboose /home/caboose 
 
